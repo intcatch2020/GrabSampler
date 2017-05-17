@@ -1,5 +1,5 @@
 #include <Wire.h>
-#include <ArduinoJson.h>
+
 /*Manually define these after we get the pumps */
 #define pump0Addr 0
 #define pump1Addr 1
@@ -59,11 +59,6 @@ void loop()
 	  if (millis() >= (start_time[i] + run_time))
 	    {
 	      disable(i);
-	      snprintf(output_buffer,sizeof(output_buffer),
-		       "{"
-		       "\"s\":\"%d\""
-		       "}",i);
-	      send(output_buffer);
 	    }
 	}
     }
@@ -220,13 +215,4 @@ void disable(int pump)
       Wire.endTransmission();
     }
   delay(300);
-}
-void send(char *str) 
-{ 
-  size_t len = strlen(str);
-  str[len++] = '\n';
-  str[len] = '\0';
-  Serial.print(str);
-  //Serial.print("-> ");
-  //Serial.print(str);
 }
