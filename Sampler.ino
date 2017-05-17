@@ -1,3 +1,4 @@
+#include <SoftwareSerial.h>
 #include <ArduinoJson.h>
 #include <string.h>
 
@@ -16,14 +17,30 @@ bool first_command_recvd = false;
 
 long run_time = 10000; //ms
 
-void send(char *str)
-{
-  size_t len = strlen(str);
-  str[len++] = '\n'; //terminate
-  str[len] = '\0';
+/*Pumps need an rx and tx pin each
+we dont actually need the recieve data
+actually do we need to check if its finished sending a string before sending it one???
+*/
+const int pump0RX = -1;
+const int pump0TX = 36;
 
-  Serial1.print(str);
-}
+const int pump1RX = -1;
+const int pump1TX = 37;
+
+const int pump2RX = -1;
+const int pump2TX = 38;
+
+const int pump3RX = -1;
+const int pump3TX = 39;
+
+//initialize serial ports for pumps
+SoftwareSerial pump0(pump0RX,pump0TX);
+SoftwareSerial pump1(pump1RX,pump1TX);
+SoftwareSerial pump2(pump2RX,pump2TX);
+SoftwareSerial pump3(pump3RX,pump3TX);
+
+//^ combine these
+SoftwareSerial pumps[4] = {pump0,pump1,pump2,pump3}; 
 
 /*
   possible json commands to handle
@@ -45,15 +62,15 @@ int handleCommand(char *buffer)
         {
           enable(0);
         }
-      if (atoid(value) == 1)
+      if (atoi(value) == 1)
         {
           enable(1);
         }
-      if (atoid(value) == 2)
+      if (atoi(value) == 2)
         {
           enable(2);
         }
-      if (atoid(value) == 3)
+      if (atoi(value) == 3)
         {
           enable(3);
         }
@@ -61,30 +78,27 @@ int handleCommand(char *buffer)
 
   if (param == 'd')
     {
-      if (atoid(value) == 0)
+      if (atoi(value) == 0)
         {
           disable(0);
         }
-      if (atoid(value) == 1)
+      if (atoi(value) == 1)
         {
           disable(1);
         }
-      if (atoid(value) == 2)
+      if (atoi(value) == 2)
         {
           disable(2);
         }
-      if (atoid(value) == 3)
+      if (atoi(value) == 3)
         {
           disable(3);
         }
     }
-  if (param == 's') 
+  if (param == 's')
     {
-      disable(0);
-      disable(1);
-      disable(2);
-      disable(3);
-    } 
+      stop();
+    }
   if (param == 't') //set pump runtime
     {
       run_time = atoi(value); //in milis!!
@@ -92,15 +106,37 @@ int handleCommand(char *buffer)
 }
 void setup()
 {
+  delay(1000);
+  Serial.begin(9600);
+  pump0.begin(9600);
+  pump1.begin(9600);
+  pump2.begin(9600);
+  pump3.begin(9600);
+
+  input_buffer[INPUT_BUFFER_SIZE] = '\0';
+  output_buffer[OUTPUT_BUFFER_SIZE] = '\0';
+
+
 }
 void loop()
 {
 }
 void enable(int pump)
 {
-
+  //send it c,0
+  //will continuously run pump
+  //disables reporting (we dont care about this)
+  pumps[i].print("C,0");
 }
 void disable(int pump)
 {
-
+  //P pauses 
+  pumps[i].print("P");
+}
+void stop()
+{
+  for (int i = 0; i < 4; i++)
+    {
+      disable(i);
+    }
 }
