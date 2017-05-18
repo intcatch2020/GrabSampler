@@ -1,17 +1,9 @@
 #include <Wire.h>
 #include <ArduinoJson.h>
 /*Manually define these after we get the pumps */
-#define pump0Addr 0
-#define pump1Addr 1
-#define pump2Addr 2
-#define pump3Addr 3
 
-/*
-  Loop will read in the serial data, this will be a json string
-  it will save the data into a global var
-  loop will then parse this and do what it needs
-*/
-
+//need to change this
+int pumpAddr[4] = {1,2,3,4};
 
 const size_t INPUT_BUFFER_SIZE = 512;
 char input_buffer[INPUT_BUFFER_SIZE+1];
@@ -23,12 +15,13 @@ char output_buffer[OUTPUT_BUFFER_SIZE+1];
 int run_time = 10000; //in millis
 bool active[4] = {true,true,true,true};
 bool ran[4] = {false,false,false,false};
-long start_time[4]; //if value is -1 it means pump is not in use from being disabled
-//this will occur on start/reset/after running
+long start_time[4]; //if value is -1 it means pump is not in use from being onstart/reset
+
 
 void setup()
 {
   Serial.begin(9600);
+  Serial.flush();
   Wire.begin();
 }
 
@@ -37,16 +30,16 @@ void loop()
   if (Serial.available() > 0)
     {
       char c = Serial.read();
-      if (c != '\n' && c != '\r' && c!= '+'){
+      if (c != '\n' && c != '\r'){
         input_buffer[input_index] = c;
-	input_index++;
+        input_index++;
       }
       //Serial.print(c);
-      if (input_index >= INPUT_BUFFER_SIZE || c == '\n' || c == '\r' || c == '+')
+      if (input_index >= INPUT_BUFFER_SIZE || c == '\n' || c == '\r')
         {
-	  Serial.print("-> ");
-	  Serial.print(input_buffer);
-	  Serial.print("\n");
+          Serial.print("-> ");
+          Serial.print(input_buffer);
+          Serial.print("\n");
           input_buffer[input_index] = '\0';
           input_index = 0;
           handleCommand(input_buffer);
@@ -82,8 +75,8 @@ void loop()
                        "\"GS\":\"%d\""
                        "}",i);
               send(output_buffer);
-	      ran[i] = false; //dont notify again
-	    }
+              ran[i] = false; //dont notify again
+            }
         }
     }
 }
@@ -116,46 +109,16 @@ int handleCommand(char *buffer)
       Serial.print("enabling pump ");
       Serial.print(atoi(value));
       Serial.print("\n");
-
-      if (atoi(value) == 0)
-        {
-          enable(0);
-        }
-      if (atoi(value) == 1)
-        {
-          enable(1);
-        }
-      if (atoi(value) == 2)
-        {
-          enable(2);
-        }
-      if (atoi(value) == 3)
-        {
-          enable(3);
-        }
+      int pump = atoi(value);
+      enable(pump);
     }
   if (param == 'd')
     {
       Serial.print("disabling pump ");
       Serial.print(atoi(value));
       Serial.print("\n");
-
-      if (atoi(value) == 0)
-        {
-          disable(0);
-        }
-      if (atoi(value) == 1)
-        {
-          disable(1);
-        }
-      if (atoi(value) == 2)
-        {
-          disable(2);
-        }
-      if (atoi(value) == 3)
-        {
-          disable(3);
-        }
+      int pump = atoi(value);
+      disable(pump);
     }
   if (param == 's')
     {
@@ -180,110 +143,35 @@ int handleCommand(char *buffer)
 }
 void stop()
 {
-  disable(0);
-  disable(1);
-  disable(2);
-  disable(3);
-  //disable all 4
+  for (int i = 0; i < 4; i++)
+    {
+      disable(i);
+    }
 }
 void enable(int pump)
 {
-  if (pump == 0)
+  if (active[pump] == true)
     {
-      if (active[0] == true)
-        {
-          Wire.beginTransmission(pump0Addr);
-          Wire.write("C,0\r");
-          Wire.endTransmission();
-          active[0] = false;
-          start_time[0] = millis();
-	  ran[0] = true;
-        }
-      else
-	{
-	  Serial.print("pump needs to be reset\n");
-	}
+      Wire.beginTransmission(pumpAddr[pump]);
+      Wire.write("C,0\r");
+      Wire.endTransmission();
+      active[pump] = false;
+      start_time[pump] = millis();
+      ran[pump] = true;
     }
-  else if (pump == 1)
+  else
     {
-      if (active[1] == true)
-        {
-          Wire.beginTransmission(pump1Addr);
-          Wire.write("C,0\r");
-          Wire.endTransmission();
-          active[1] = false;
-          start_time[1] = millis();
-	  ran[1] = true;
-        }
-      else
-	{
-	  Serial.print("pump needs to be reset\n");
-	}
-      
-    }
-  else if (pump == 2)
-    {
-      if (active[2] == true)
-        {
-          Wire.beginTransmission(pump2Addr);
-          Wire.write("C,0\r");
-          Wire.endTransmission();
-          active[2] = false;
-          start_time[2] = millis();
-	  ran[2] = true;
-        }
-      else
-	{
-	  Serial.print("pump needs to be reset\n");
-	}
-      
-    }
-  else if (pump == 3)
-    {
-      if (active[3] == true)
-        {
-          Wire.beginTransmission(pump3Addr);
-          Wire.write("C,0\r");
-          Wire.endTransmission();
-          active[3] = false;
-          start_time[3] = millis();
-	  ran[3] = true;
-        }
-      else
-	{
-	  Serial.print("pump needs to be reset\n");
-	}
-      
+      Serial.println("Pump needs to be reset\n");
     }
   delay(300);
 }
 void disable(int pump)
 {
-  if (pump == 0)
-    {
-      Wire.beginTransmission(pump0Addr);
-      Wire.write("P\r");
-      Wire.endTransmission();
-    }
-  else if (pump == 1)
-    {
-      Wire.beginTransmission(pump1Addr);
-      Wire.write("P\r");
-      Wire.endTransmission();
-    }
-  else if (pump == 2)
-    {
-      Wire.beginTransmission(pump2Addr);
-      Wire.write("P\r");
-      Wire.endTransmission();
-    }
-  else if (pump == 3)
-    {
-      Wire.beginTransmission(pump3Addr);
-      Wire.write("P\r");
-      Wire.endTransmission();
-    }
+  Wire.beginTransmission(pumpAddr[pump]);
+  Wire.write("P\r");
+  Wire.endTransmission();
   delay(300);
+  active[pump] = false;
 }
 void send(char *str)
 {
