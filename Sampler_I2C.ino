@@ -22,6 +22,7 @@ char output_buffer[OUTPUT_BUFFER_SIZE+1];
 
 int run_time = 10000; //in millis
 bool active[4] = {true,true,true,true};
+bool ran[4] = {false,false,false,false};
 long start_time[4]; //if value is -1 it means pump is not in use from being disabled
 //this will occur on start/reset/after running
 
@@ -71,19 +72,18 @@ void loop()
 
   for (int i = 0; i < 4; i++)
     {
-      if (active[i] == false && start_time[i] != -1)
+      if (active[i] == false && start_time[i] != -1 && ran[i] == true)
         {
           if (millis() >= (start_time[i] + run_time))
             {
               disable(i);
               snprintf(output_buffer,sizeof(output_buffer),
                        "{"
-                       "\"s\":\"%d\""
+                       "\"GS\":\"%d\""
                        "}",i);
               send(output_buffer);
-	      active[i] = true;
-	      start_time[i] == -1;
-         }
+	      ran[i] = false; //dont notify again
+	    }
         }
     }
 }
@@ -197,7 +197,12 @@ void enable(int pump)
           Wire.endTransmission();
           active[0] = false;
           start_time[0] = millis();
+	  ran[0] = true;
         }
+      else
+	{
+	  Serial.print("pump needs to be reset\n");
+	}
     }
   else if (pump == 1)
     {
@@ -208,7 +213,13 @@ void enable(int pump)
           Wire.endTransmission();
           active[1] = false;
           start_time[1] = millis();
+	  ran[1] = true;
         }
+      else
+	{
+	  Serial.print("pump needs to be reset\n");
+	}
+      
     }
   else if (pump == 2)
     {
@@ -219,7 +230,13 @@ void enable(int pump)
           Wire.endTransmission();
           active[2] = false;
           start_time[2] = millis();
+	  ran[2] = true;
         }
+      else
+	{
+	  Serial.print("pump needs to be reset\n");
+	}
+      
     }
   else if (pump == 3)
     {
@@ -230,7 +247,13 @@ void enable(int pump)
           Wire.endTransmission();
           active[3] = false;
           start_time[3] = millis();
+	  ran[3] = true;
         }
+      else
+	{
+	  Serial.print("pump needs to be reset\n");
+	}
+      
     }
   delay(300);
 }
