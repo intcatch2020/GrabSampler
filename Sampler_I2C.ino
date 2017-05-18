@@ -21,7 +21,6 @@ long start_time[4]; //if value is -1 it means pump is not in use from being onst
 void setup()
 {
   Serial.begin(9600);
-  Serial.flush();
   Wire.begin();
 }
 
@@ -45,18 +44,6 @@ void loop()
           handleCommand(input_buffer);
         }
     }
-  // Index to last character in debug buffer.
-  //  static size_t input_buffer_idx = 0;
-
-  // Wait until characters are received.
-  //note this is blocking the timer code
-  /* while (!Serial.available()) yield(); */
-
-  /* // Put the new character into the buffer, ignore \n and \r */
-
-  // If it is the end of a line, or we are out of space, parse the buffer.
-  //remove the + this is just to test with the arduino serial monitor since it
-  //cant handle escape sequences
 
   /*For all pumps
     if the active is false and start time != -1 meaning its current running
@@ -88,6 +75,7 @@ void loop()
   {"s":} //stops all of them
   {"t":time} //sets runtime in millis
   {"r":} //resets all of them and puts them back in an active state
+  {"c":0-4} //get status of pump (either enabled or disabled)
 */
 
 int handleCommand(char *buffer)
@@ -95,14 +83,6 @@ int handleCommand(char *buffer)
   char param;
   char value[512]; //this has to be null terminated!!
   sscanf(buffer, "{\"%c\":%c}", &param, &value);
-  /* Serial.print("->"); */
-  /* Serial.print(buffer); */
-  /* Serial.print("param is: "); */
-  /* Serial.print(param); */
-  /* Serial.print("\n"); */
-  /* Serial.print("value is: "); */
-  /* Serial.print(value); */
-  /* Serial.print("\n"); */
 
   if (param == 'e')
     {
@@ -139,6 +119,19 @@ int handleCommand(char *buffer)
           active[i] = true;
           start_time[i] = -1;
         }
+    }
+  if (param == 'c')
+    {
+      int pump = atoi(value);
+      Serial.print("<-");
+      if (active[pump] == true)
+	{
+	  Serial.print("E\n"); //Meaning you can use it
+	}
+      else
+	{
+	  Serial.print("D\n"); //Meaning you cannot use it
+	}
     }
 }
 void stop()
