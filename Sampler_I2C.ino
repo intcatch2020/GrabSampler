@@ -12,8 +12,10 @@
   loop will then parse this and do what it needs
 */
 
+
 const size_t INPUT_BUFFER_SIZE = 512;
 char input_buffer[INPUT_BUFFER_SIZE+1];
+int input_index = 0;
 const size_t OUTPUT_BUFFER_SIZE = 512;
 char output_buffer[OUTPUT_BUFFER_SIZE+1];
 
@@ -31,59 +33,90 @@ void setup()
 
 void loop()
 {
-  static size_t input_buffer_idx = 0;
+  if (Serial.available() > 0)
+    {
+      char c = Serial.read();
+      if (c != '\n' && c != '\r' && c!= '+'){
+        input_buffer[input_index] = c;
+	input_index++;
+      }
+      //Serial.print(c);
+      if (input_index >= INPUT_BUFFER_SIZE || c == '\n' || c == '\r' || c == '+')
+        {
+	  Serial.print("-> ");
+	  Serial.print(input_buffer);
+	  Serial.print("\n");
+          input_buffer[input_index] = '\0';
+          input_index = 0;
+          handleCommand(input_buffer);
+        }
+    }
+  // Index to last character in debug buffer.
+  //  static size_t input_buffer_idx = 0;
 
   // Wait until characters are received.
-  while (!Serial.available()) yield();
+  //note this is blocking the timer code
+  /* while (!Serial.available()) yield(); */
 
-  // Put the new character into the buffer, ignore \n and \r
-  char c = Serial.read();
+  /* // Put the new character into the buffer, ignore \n and \r */
 
-  if (c != '\n' && c != '\r'){
-    input_buffer[input_buffer_idx++] = c;
-  }
   // If it is the end of a line, or we are out of space, parse the buffer.
-  if (input_buffer_idx >= INPUT_BUFFER_SIZE || c == '\n' || c == '\r')
-    {
-      handleCommand(input_buffer);
-    }
+  //remove the + this is just to test with the arduino serial monitor since it
+  //cant handle escape sequences
 
   /*For all pumps
     if the active is false and start time != -1 meaning its current running
     if current time is greather than the start time + run time disable it
-   */
+  */
+
   for (int i = 0; i < 4; i++)
     {
       if (active[i] == false && start_time[i] != -1)
-	{
-	  if (millis() >= (start_time[i] + run_time))
-	    {
-	      disable(i);
-	      snprintf(output_buffer,sizeof(output_buffer),
-		       "{"
-		       "\"s\":\"%d\""
-		       "}",i);
-	      send(output_buffer);
-	    }
-	}
+        {
+          if (millis() >= (start_time[i] + run_time))
+            {
+              disable(i);
+              snprintf(output_buffer,sizeof(output_buffer),
+                       "{"
+                       "\"s\":\"%d\""
+                       "}",i);
+              send(output_buffer);
+	      active[i] = true;
+	      start_time[i] == -1;
+         }
+        }
     }
 }
 
 /*
-  {'e':'0-4'} //enables 0-4 (turn on)
-  {'d':'0-4'} //disables 0-4 (turn off)
-  {'s':''} //stops all of them
-  {'t':'time'} //sets runtime in millis
-  {'r':''} //resets all of them and puts them back in an active state
+
+  {"e":0-4} //enables 0-4 (turn on)
+  {"d":0-4} //disables 0-4 (turn off)
+  {"s":} //stops all of them
+  {"t":time} //sets runtime in millis
+  {"r":} //resets all of them and puts them back in an active state
 */
+
 int handleCommand(char *buffer)
 {
   char param;
   char value[512]; //this has to be null terminated!!
-  sscanf(buffer,{"\"%c\":\"%s\""});
+  sscanf(buffer, "{\"%c\":%c}", &param, &value);
+  /* Serial.print("->"); */
+  /* Serial.print(buffer); */
+  /* Serial.print("param is: "); */
+  /* Serial.print(param); */
+  /* Serial.print("\n"); */
+  /* Serial.print("value is: "); */
+  /* Serial.print(value); */
+  /* Serial.print("\n"); */
 
   if (param == 'e')
     {
+      Serial.print("enabling pump ");
+      Serial.print(atoi(value));
+      Serial.print("\n");
+
       if (atoi(value) == 0)
         {
           enable(0);
@@ -103,6 +136,10 @@ int handleCommand(char *buffer)
     }
   if (param == 'd')
     {
+      Serial.print("disabling pump ");
+      Serial.print(atoi(value));
+      Serial.print("\n");
+
       if (atoi(value) == 0)
         {
           disable(0);
@@ -122,19 +159,23 @@ int handleCommand(char *buffer)
     }
   if (param == 's')
     {
+      Serial.print("stopping all pumps\n");
       stop();
     }
   if (param == 't') //set pump runtime
     {
+      Serial.print("setting new time to ");
+      Serial.print(atoi(value));
       run_time = atoi(value); //in milis!!
     }
   if (param == 'r')
     {
+      Serial.print("resetting all pumps \n");
       for (int i = 0; i < 4; i++)
-	{
-	  active[i] = true; 
-	  start_time[i] = -1; 
-	}
+        {
+          active[i] = true;
+          start_time[i] = -1;
+        }
     }
 }
 void stop()
@@ -154,8 +195,8 @@ void enable(int pump)
           Wire.beginTransmission(pump0Addr);
           Wire.write("C,0\r");
           Wire.endTransmission();
-	  active[0] = false;
-	  start_time[0] = millis();
+          active[0] = false;
+          start_time[0] = millis();
         }
     }
   else if (pump == 1)
@@ -165,8 +206,8 @@ void enable(int pump)
           Wire.beginTransmission(pump1Addr);
           Wire.write("C,0\r");
           Wire.endTransmission();
-	  active[1] = false;
-	  start_time[1] = millis();
+          active[1] = false;
+          start_time[1] = millis();
         }
     }
   else if (pump == 2)
@@ -176,8 +217,8 @@ void enable(int pump)
           Wire.beginTransmission(pump2Addr);
           Wire.write("C,0\r");
           Wire.endTransmission();
-	  active[2] = false;
-	  start_time[2] = millis();
+          active[2] = false;
+          start_time[2] = millis();
         }
     }
   else if (pump == 3)
@@ -187,8 +228,8 @@ void enable(int pump)
           Wire.beginTransmission(pump3Addr);
           Wire.write("C,0\r");
           Wire.endTransmission();
-	  active[3] = false;
-	  start_time[3] = millis();
+          active[3] = false;
+          start_time[3] = millis();
         }
     }
   delay(300);
@@ -221,8 +262,8 @@ void disable(int pump)
     }
   delay(300);
 }
-void send(char *str) 
-{ 
+void send(char *str)
+{
   size_t len = strlen(str);
   str[len++] = '\n';
   str[len] = '\0';
