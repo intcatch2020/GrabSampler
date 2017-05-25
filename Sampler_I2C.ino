@@ -17,6 +17,7 @@ bool active[4] = {true,true,true,true};
 bool ran[4] = {false,false,false,false};
 long start_time[4]; //if value is -1 it means pump is not in use from being onstart/reset
 
+int vol = 100;
 
 void setup()
 {
@@ -56,6 +57,8 @@ void loop()
   /*For all pumps
     if the active is false and start time != -1 meaning its current running
     if current time is greather than the start time + run time disable it
+
+    We can get rid of this after I test the volumetric pump and we dont need a timer anymore
   */
 
   for (int i = 0; i < 4; i++)
@@ -84,6 +87,7 @@ void loop()
   {"t":time} //sets runtime in millis
   {"r":} //resets all of them and puts them back in an active state
   {"c":0-4} //get status of pump (either enabled or disabled)
+  {"v":ml} //sets how many ml of water to pump
 */
 
 int handleCommand(char *buffer)
@@ -141,6 +145,10 @@ int handleCommand(char *buffer)
 	  Serial.print("D\n"); //Meaning you cannot use it
 	}
     }
+  if (param == 'v')
+    {
+      vol = atoi(value);
+    }
 }
 void stop()
 {
@@ -149,6 +157,12 @@ void stop()
       disable(i);
     }
 }
+/*
+  Replace the cont flow with volumetric flow eventually
+  Wire.write("D,");
+  Wire.Write(vol);
+  Wire.write("\r");
+*/
 void enable(int pump)
 {
   if (active[pump] == true)
