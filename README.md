@@ -1,4 +1,4 @@
-This is the ardunio firmware for the grab sampler designed to work with the Platypus eBoard.
+This is the arduino firmware for the grab sampler designed to work with the Platypus EBoard.
 
 Notes
 - It should be used as a json passthrough
@@ -28,5 +28,6 @@ Page 10 of https://www.atlas-scientific.com/_files/_datasheets/_peristaltic/EZO_
 
 After this the pump should be calibrated. This is useful because the code (while it doesnt yet) will pump the exact volume of water that the specific container has (no overflow).
 
-Small Ardunio Programs will also be written to help with setting the addresses of the pumps as well as calibrating them easily!. 
+Folders have been added with .ino files for putting the pump in i2c mode and calibrating them. (Note neither have these have been tested yet).
+They should be run in that order! Put the pumps in I2C mode and give them a dedicated unique address (relative to the other pumps on the same sampler) before calibrating!!
 
