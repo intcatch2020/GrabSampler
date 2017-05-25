@@ -20,20 +20,24 @@ long start_time[4]; //if value is -1 it means pump is not in use from being onst
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial1.begin(9600); //transfer from eboard to samplerard
+  Serial.begin(9600); //debug serial
+  while(!Serial1); //wait for serialport to open
+  while(!Serial); //wait for serialport to open
   Wire.begin();
 }
 
 void loop()
 {
-  if (Serial.available() > 0)
+  if (Serial1.available() > 0)
     {
-      char c = Serial.read();
+      //serial.read isnt working
+      char c = Serial1.read();
       if (c != '\n' && c != '\r'){
         input_buffer[input_index] = c;
         input_index++;
       }
-      //Serial.print(c);
+      //Serial1.print(c);
       if (input_index >= INPUT_BUFFER_SIZE || c == '\n' || c == '\r')
         {
           Serial.print("-> ");
@@ -43,6 +47,10 @@ void loop()
           input_index = 0;
           handleCommand(input_buffer);
         }
+    }
+  else
+    {
+      Serial.print("no serial avail\n");
     }
 
   /*For all pumps
@@ -108,7 +116,7 @@ int handleCommand(char *buffer)
   if (param == 't') //set pump runtime
     {
       Serial.print("setting new time to ");
-      Serial.print(atoi(value));
+      Serial1.print(atoi(value));
       run_time = atoi(value); //in milis!!
     }
   if (param == 'r')
@@ -171,7 +179,7 @@ void send(char *str)
   size_t len = strlen(str);
   str[len++] = '\n';
   str[len] = '\0';
+  Serial1.print(str);
+  Serial.print("-> ");
   Serial.print(str);
-  //Serial.print("-> ");
-  //Serial.print(str);
 }
