@@ -29,9 +29,9 @@ void setup()
  // Wire1.setClock(400000);
   Wire1.begin();
 
-  enable(0);
-  enable(1);
-  delay(50000);
+  //enable(0);
+  //enable(1);
+  //delay(50000);
 }
 
 void loop()
