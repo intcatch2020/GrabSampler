@@ -11,7 +11,7 @@ void setup()
   Serial1.begin(9600); //pump serial
   while(!Serial1);
   //change that 1 to what you want to make the address
-  Serial1.write("I2C,2\r");
+  Serial1.write("I2C,4\r");
   Serial.print("hello test\n");
 }
 
