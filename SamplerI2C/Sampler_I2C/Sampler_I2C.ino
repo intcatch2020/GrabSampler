@@ -2,13 +2,9 @@
 #include <ArduinoJson.h>
 #include <SoftwareSerial.h>
 #include <ArduinoJson.h>
-#include <Timer.h>
 
 
-Timer t;
-//SoftwareSerial SoftSerial(10, 11); //rx tx
-SoftwareSerial SoftSerial(6, 7); //rx tx
-//need to change this
+SoftwareSerial SoftSerial(10, 11); //rx tx
 int numPumps = 4;
 int pumpAddr[] = {1,2,3,4};
 double cur_vol[4];
@@ -40,28 +36,30 @@ void setup()
 
 void loop()
 {
-	if (SoftSerial.available())
+	while (SoftSerial.available())
   {
-    //serial.read isnt working
     char c = SoftSerial.read();
-    if (c != '\n' && c != '\r'){
-      input_buffer[input_index++] = c;
+    if (c != '\n') // ignore new lines
+    {
+      input_buffer[input_index] = c;
+      input_index++;
+      if (input_index >= INPUT_BUFFER_SIZE)
+      {
+        Serial.println("filled buffer, return to index 0");
+        input_index = 0;
+        continue;
+      }      
     }
     //Serial.print(c);
-    if (input_index >= INPUT_BUFFER_SIZE || c == '\n' || c == '\r')
-      {
-        input_buffer[input_index++] = '\0';
-        Serial.print("-> ");
-        Serial.print(input_buffer);
-        Serial.print("\n");
-        handleCommand(input_buffer);
-        input_index = 0;
-      }
+    if (c == '\r') // command ends with carriage return
+    {
+      input_buffer[input_index] = '\0';
+      Serial.print("-> ");
+      Serial.println(input_buffer);        
+      handleCommand(input_buffer);
+      input_index = 0;
+    }
   }
- else
-   {
-     //  Serial.print("no serial avail\n");
-   }
 
 	/*Unfortunetly there is some error that arises with one of the pumps
 	  That returns a ? symbol for the volume amount from pump 1 so for now
@@ -88,86 +86,81 @@ void loop()
 
 void handleCommand(char *buffer)
 {
-  char param;
-  int value;
+  char param = '_';
+  int value = 0;
 
-  //{e:0}
+  Serial.print("command: "); Serial.println(buffer);
+
   sscanf(buffer,
          "{"
-         "%c:"
+         "\"%c\":" // JSON strings have quotation marks around the keys
          "%d"
          "}",
          &param, &value);
 
-  //not sure what is happening but some times empty commands with value 62 are getting through
-  if (value == 69)
-    {
-      return;
-    }
-
   Serial.print("param is: ");
   Serial.println(param);
   Serial.print("value is: ");
-  Serial.println(value,DEC);
+  Serial.println(value);
+
   if (param == 'e')
-    {
-      // Serial.print(atoi(value));
-      // Serial.print("\n");
-      //int pump = atoi(value); //addresses start at 1 not 0
-      //enable(value[0]-'0');
-      Serial.println("got here");
-      enable(value);
-    }
+  {
+    // Serial.print(atoi(value));
+    // Serial.print("\n");
+    //int pump = atoi(value); //addresses start at 1 not 0
+    //enable(value[0]-'0');
+    //Serial.println("got here");
+    enable(value);
+  }
   if (param == 'd')
-    {
-      //Serial.print("disabling pump ");
-      //Serial.print(atoi(value));
-      //Serial.print(value);
-      //Serial.print("\n");
-      //disable(value[0]-'0');
-      disable(value);
-    }
+  {
+    //Serial.print("disabling pump ");
+    //Serial.print(atoi(value));
+    //Serial.print(value);
+    //Serial.print("\n");
+    //disable(value[0]-'0');
+    disable(value);
+  }
   if (param == 's')
-    {
-      // Serial.print("stopping all pumps\n");
-      stop();
-    }
+  {
+    // Serial.print("stopping all pumps\n");
+    stop();
+  }
   if (param == 'r')
+  {
+    Serial.println("resetting all pumps");
+    for (int i = 0; i < 4; i++)
     {
-      Serial.print("resetting all pumps \n");
-      for (int i = 0; i < 4; i++)
-        {
-          active[i] = true;
-          finished[i] = false;
-        }
-
+      active[i] = true;
+      finished[i] = false;
     }
+  }
   if (param == 'c')
+  {
+    //int pump = atoi(value);
+    //int pump = value[0]-'0';
+
+
+    //Serial.print("<-");
+    if (active[value] == true)
     {
-      //int pump = atoi(value);
-      //int pump = value[0]-'0';
-
-
-      //Serial.print("<-");
-      if (active[value] == true)
-        {
-          char str[500];
-          snprintf(str,500,"{e:%d\r",value);
-          SoftSerial.print(str); //Meaning you can use it
-        }
-      else
-        {
-          char str[500];
-          snprintf(str,500,"{d:%d\r",value);
-          SoftSerial.print(str);//Meaning you cannot use it
-        }
+      char str[500];
+      snprintf(str,500,"{e:%d\r",value);
+      SoftSerial.print(str); //Meaning you can use it
     }
+    else
+    {
+      char str[500];
+      snprintf(str,500,"{d:%d\r",value);
+      SoftSerial.print(str);//Meaning you cannot use it
+    }
+  }
   if (param == 'v')
-    {
-      vol = value;
-      Serial.print("volume is now: ");
-      Serial.println(value);
-    }
+  {
+    vol = value;
+    Serial.print("volume is now: ");
+    Serial.println(value);
+  }
   // if (param == 'f')
   //   {
   //     char str[500];
@@ -188,30 +181,30 @@ void enable(int pump)
   // Serial.println(pump);
 
   if (pump < 0 || pump > 3)
-    {
-      Serial.println("Pump is out of range");
-      return;
-    }
+  {
+    Serial.println("Pump is out of range");
+    return;
+  }
   //{"s0":{e:0}}\r
   if (active[pump] == true)
-    {
-      //Serial.println("pump is active");
-      char str[500];
-      Wire.beginTransmission(pumpAddr[pump]);
-      snprintf(str,20,"D,%d\r",vol);
-      Wire.write(str);
-      Wire.endTransmission();
-      active[pump] = false;
-      delay(300);
-    }
+  {
+    //Serial.println("pump is active");
+    char str[500];
+    Wire.beginTransmission(pumpAddr[pump]);
+    snprintf(str,20,"D,%d\r",vol);
+    Wire.write(str);
+    Wire.endTransmission();
+    active[pump] = false;
+    delay(300);
+  }
 }
 void disable(int pump)
 {
   if (pump < 0 || pump > 3)
-    {
-      Serial.println("Pump is out of range");
-      return;
-    }
+  {
+    Serial.println("Pump is out of range");
+    return;
+  }
   // Serial.print("disabling pump");
   // Serial.print(pump);
   Wire.beginTransmission(pumpAddr[pump]);
@@ -223,9 +216,9 @@ void disable(int pump)
 void stop()
 {
   for (int i=0; i<4; i++)
-    {
-      disable(i);
-    }
+  {
+    disable(i);
+  }
 }
 
 void send(char *str)
@@ -244,9 +237,9 @@ void feedbackLoop()
   for (int p = 0; p < 4; p++)
     {
       if (finished[p] == true)
-        {
-          continue;
-        }
+      {
+        continue;
+      }
 
       Wire.beginTransmission(pumpAddr[p]);
       Wire.write("R, \r");
@@ -258,16 +251,17 @@ void feedbackLoop()
       char pmp_data[30];
       int i = 0;
       while(Wire.available())
+      {
+        in_char = Wire.read();
+        pmp_data[i]= in_char;
+        i+=1;
+        if (in_char==0)
         {
-          in_char = Wire.read();
-          pmp_data[i]= in_char;
-          i+=1;
-          if(in_char==0){
-            i=0;
-            Wire.endTransmission();
-            break;
-          }
+          i=0;
+          Wire.endTransmission();
+          break;
         }
+      }
       double cur_amt = strtod(&pmp_data[1],NULL);
       char buf[500];
       snprintf(buf,500,"{%d:%s}\r",p,pmp_data);
@@ -276,8 +270,8 @@ void feedbackLoop()
       cur_vol[i] = cur_amt;
 
       if (cur_amt == vol)
-        {
-          finished[p] = true;
-        }
+      {
+        finished[p] = true;
+      }
     }
 }
