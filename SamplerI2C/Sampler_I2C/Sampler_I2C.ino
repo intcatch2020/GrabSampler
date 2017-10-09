@@ -10,6 +10,9 @@ int pumpAddr[] = {1,2,3,4};
 double cur_vol[4];
 bool active[] = {true,true,true,true}; //can pump be used
 bool finished[] = {false,false,false,false};
+char delimiters[] = "{:\"}";
+char command_keys[] = "edsrcv";
+char numerics[] = "0123456789.-";
 
 
 const size_t INPUT_BUFFER_SIZE = 512;
@@ -39,6 +42,7 @@ void loop()
 	while (SoftSerial.available())
   {
     char c = SoftSerial.read();
+    //Serial.println(c);
     if (c != '\n') // ignore new lines
     {
       input_buffer[input_index] = c;
@@ -48,9 +52,8 @@ void loop()
         Serial.println("filled buffer, return to index 0");
         input_index = 0;
         continue;
-      }      
-    }
-    //Serial.print(c);
+      }
+    }    
     if (c == '\r') // command ends with carriage return
     {
       input_buffer[input_index] = '\0';
@@ -86,22 +89,69 @@ void loop()
 
 void handleCommand(char *buffer)
 {
-  char param = '_';
-  int value = 0;
+
+  // debug: force buffer to be full of gibberish
+  //char debug_buffer[] = "s: a";
+  //char debug_buffer[] = {0xFF, 0xF2, 0xFF, 0xFF, 0xF0, 0xF3, 0xF0, 0xFC};
+  //buffer = debug_buffer;
+  
+  char *param_string;
+  char *value_string;
+  char *buffer_string_bookmark; // used for re-entrant version of strtok, strtok_r
+  char *param_string_bookmark; // strtok_r lets you use strtok on more than one thing at a time 
+  char *value_string_bookmark;
+  int value;
 
   Serial.print("command: "); Serial.println(buffer);
-
-  sscanf(buffer,
-         "{"
-         "\"%c\":" // JSON strings have quotation marks around the keys
-         "%d"
-         "}",
-         &param, &value);
-
-  Serial.print("param is: ");
-  Serial.println(param);
-  Serial.print("value is: ");
-  Serial.println(value);
+  
+  char* chunk;
+  chunk = strtok_r(buffer, delimiters, &buffer_string_bookmark);
+  int token_count = 0;  
+  while (chunk != NULL && token_count < 2) // only expect a parameter: value JSON
+  {
+    switch (token_count)
+    {
+      case 0:
+        param_string = chunk;        
+        char *valid_command_check;
+        valid_command_check = strtok_r(param_string, command_keys, &param_string_bookmark);
+        if (valid_command_check != NULL)
+        {
+          Serial.print("Unknown command: "); Serial.print(chunk); Serial.println(", ignoring...");
+          // TODO: blink a red LED
+          return;
+        }        
+        Serial.print("param = "); Serial.println(param_string);
+        break;
+      case 1:
+        value_string = chunk;
+        Serial.print("value chunk = "); Serial.println(value_string);
+        if (strtok_r(chunk, value_string, &value_string_bookmark) == NULL)
+        {
+          value = atoi(value_string);
+        }
+        else
+        {
+          Serial.println("WARNING: value is non-numeric, ignoring...");
+          // TODO: blink a red LED
+          return;
+        }
+        Serial.print("value = "); Serial.println(value);
+        break;
+      default:
+        break;
+    }   
+    chunk = strtok_r(NULL, delimiters, &buffer_string_bookmark); // continue through the buffer
+    token_count++;
+  }
+  if (token_count != 2)
+  {
+    Serial.println("Did not receive a parameter: value pair, ignoring...");
+    // TODO: blink a red LED
+    return;
+  }
+  char param = param_string[0];
+  // TODO: blink a GREEN LED
 
   if (param == 'e')
   {
@@ -168,6 +218,7 @@ void handleCommand(char *buffer)
   //     Serial.println(str);
   //     send(str);
   //   }
+  
 }
 /*
   Replace the cont flow with volumetric flow eventually
